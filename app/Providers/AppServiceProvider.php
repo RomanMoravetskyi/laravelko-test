@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\DiscountService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,6 +24,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        $this->app->bind('App\Services\DiscountServiceInterface', function ($app) {
+            return new DiscountService();
+        });
+
     }
 }

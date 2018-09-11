@@ -11,6 +11,25 @@
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/', [
+    'uses' => 'HomepageController@indexAction'
+])->name('homepage');
+
+Route::group(['prefix' => 'basket'], function () {
+
+    Route::get('/', [
+        'uses' => 'BasketController@showBasketData'
+    ]);
+
+    Route::post('/add', [
+        'uses' => 'BasketController@addItem',
+    ]);
+
+    Route::post('/remove', [
+        'uses' => 'BasketController@removeItem'
+    ]);
+
+    Route::post('/clear', [
+        'uses' => 'BasketController@clearBasket'
+    ]);
 });
