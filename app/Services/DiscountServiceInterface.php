@@ -5,7 +5,7 @@ use App\ProductsBasket;
 use App\User;
 
 /**
-* Interface DiscountServiceInterface
+ * Interface DiscountServiceInterface
  */
 Interface DiscountServiceInterface
 {

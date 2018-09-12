@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Services\DiscountService;
+use App\Services\BasketService;use App\Services\DiscountService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,9 +24,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->bind('App\Services\DiscountServiceInterface', function ($app) {
+        $this->app->bind('App\Services\DiscountServiceInterface', function () {
             return new DiscountService();
         });
 
+        $this->app->bind('App\Services\BasketServiceInterface', function () {
+            return new BasketService();
+        });
     }
 }

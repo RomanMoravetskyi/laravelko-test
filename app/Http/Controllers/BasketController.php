@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Basket;
-use App\Product;
-use App\ProductsBasket;
 use App\User;
+use App\ProductsBasket;
+use App\Services\BasketServiceInterface;
 use App\Services\DiscountServiceInterface;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
@@ -21,11 +21,18 @@ class BasketController extends BaseController
     protected $discountService;
 
     /**
-     * @param DiscountServiceInterface $discountService
+     * @var BasketServiceInterface
      */
-    public function __construct(DiscountServiceInterface $discountService)
+    protected $basketService;
+
+    /**
+     * @param DiscountServiceInterface $discountService
+     * @param BasketServiceInterface $basketService
+     */
+    public function __construct(DiscountServiceInterface $discountService, BasketServiceInterface $basketService)
     {
         $this->discountService = $discountService;
+        $this->basketService = $basketService;
     }
 
     /**
@@ -41,16 +48,10 @@ class BasketController extends BaseController
         $user = $request->user() ?: User::find(User::DEFAULT_TESTING_USER_ID);
         $basket = Basket::where('userId', User::DEFAULT_TESTING_USER_ID)->first();
 
-        if($basket) { //@todo move to separate service
+        if ($basket) {
             $productsBasket = ProductsBasket::where('basketId', $basket->id)->get();
             $discount = $this->discountService->calculateDiscount($basket->price, $productsBasket, $user);
-
-            foreach ($productsBasket as $productBasket) {
-                $productData[] = [
-                    'product' => Product::find($productBasket->productId), //@todo in future should be done via relations
-                    'amount'  => $productBasket->productQuantity
-                ];
-            }
+            $productData = $this->basketService->getBasketProductsDataByProductsBasket($productsBasket);
         }
 
         return view(
@@ -74,32 +75,9 @@ class BasketController extends BaseController
     {
         $productId = $request->input('productId');
         $user = $request->user();
-
         $userId = empty($user) ? User::DEFAULT_TESTING_USER_ID : $user->id;
-        $product = Product::find($productId); //@todo should be added check for wrong productId
-        $basket = Basket::where('userId', $userId)->first();
 
-        if ($basket) {
-            $basket->increment('quantity');
-            $basket->price += $product->price;
-            $basket->save();
-
-            $productBasket = ProductsBasket::where('basketId', $basket->id)->where('productId', $product->id)->first();
-
-            if (!empty($productBasket)) {
-                $productBasket->increment('productQuantity');
-            } else {
-                $productBasket = new ProductsBasket(['productId' => $product->id, 'basketId' => $basket->id, 'productQuantity' => 1]); // product quantity hardcoded to 1, due to we can't buy more than 1 product per 1 add to basket
-                $productBasket->save();
-            }
-
-        } else {
-            $basket = new Basket(['quantity' => 1, 'userId' => $userId, 'price' =>$product->price]); //@todo add transition.
-            $basket->save();
-
-            $productBasket = new ProductsBasket(['productId' => $product->id, 'basketId' => $basket->id, 'productQuantity' => 1]);
-            $productBasket->save();
-        }
+        $this->basketService->addBasketItem($productId, $userId);
 
         return redirect('/');
     }
@@ -115,23 +93,7 @@ class BasketController extends BaseController
        $user = $request->user();
        $userId = empty($user) ? User::DEFAULT_TESTING_USER_ID : $user->id;
 
-       $basket = Basket::where('userId', $userId)->first();
-
-       $productsBasket = ProductsBasket::where('basketId', $basket->id)->where('productId', $productId)->first(); //@todo better to add transactions
-       $productsBasket->productQuantity -= 1;
-       $productsBasket->save();
-
-       if($basket->quantity == 1) { //@todo for future better to move this part into separate service
-           Basket::where('userId', $userId)->delete();
-       } else {
-           $basket->quantity -= 1;
-           $basket->price -= (Product::find($productId))->price;
-           $basket->save();
-
-           if($productsBasket->productQuantity == 0) {
-               ProductsBasket::where('productId', $productId)->where('basketId', $basket->id)->delete();
-           }
-       }
+       $this->basketService->removeBasketItem($productId, $userId);
 
        return redirect('/basket');
     }
